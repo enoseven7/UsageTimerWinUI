@@ -1,35 +1,48 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Page
     x:Class="UsageTimerWinUI.Views.AppUsagePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:UsageTimerWinUI"
-    xmlns:models="using:UsageTimerWinUI.Models"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:CommunityToolkit.WinUI.UI.Controls"
     mc:Ignorable="d">
 
-    <Grid Padding="20">
+    <Grid Padding="20" RowDefinitions="Auto,*,Auto" RowSpacing="12">
 
-        <ListView x:Name="AppList" ItemsSource="{x:Bind AppListItems}">
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="models:AppUsageRecord">
-                    <Grid ColumnDefinitions="40,*,100,120" Padding="6">
+        <!-- SEARCHABLE DROPDOWN FOR ADDING APPS -->
+        <ComboBox x:Name="ProcessDropdown"
+                  PlaceholderText="Search running apps..."
+                  Width="300"
+                  IsEditable="True"
+                  TextSubmitted="ProcessDropdown_TextSubmitted"
+                  />
 
-                        <Image Source="{x:Bind Icon}" Width="28" Height="28"/>
+        <!-- LIST OF TRACKED APPS -->
+        <controls:DataGrid x:Name="AppList"
+                           Grid.Row="1"
+                           AutoGenerateColumns="False"
+                           ItemsSource="{x:Bind AppListItems, Mode=OneWay}"
+                           IsReadOnly="True"
+                           RowHeight="40">
 
-                        <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="16"/>
+            <controls:DataGrid.Columns>
+                <controls:DataGridTemplateColumn Header="Icon" Width="50">
+                    <controls:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Image Width="32" Height="32" Source="{Binding Icon}"/>
+                        </DataTemplate>
+                    </controls:DataGridTemplateColumn.CellTemplate>
+                </controls:DataGridTemplateColumn>
+                <controls:DataGridTextColumn Header="App" Binding="{Binding Name}" Width="*" />
+                <controls:DataGridTextColumn Header="Minutes" Binding="{Binding Minutes}" Width="120" />
+                <controls:DataGridTextColumn Header="Time" Binding="{Binding Formatted}" Width="160" />
 
-                        <TextBlock Grid.Column="2" Text="{x:Bind Minutes}" HorizontalAlignment="Right"/>
+            </controls:DataGrid.Columns>
+        </controls:DataGrid>
 
-                        <TextBlock Grid.Column="3" Text="{x:Bind Formatted}" HorizontalAlignment="Right"/>
-
-                    </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
-
-
+        <Button Grid.Row="2"
+                Content="Remove selected"
+                HorizontalAlignment="Left"
+                Click="RemoveButton_Click"/>
     </Grid>
 </Page>
-

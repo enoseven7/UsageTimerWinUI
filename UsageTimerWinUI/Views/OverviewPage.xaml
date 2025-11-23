@@ -6,27 +6,45 @@
     xmlns:local="using:UsageTimerWinUI"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:lvc="using:LiveChartsCore.SkiaSharpView.WinUI"
     mc:Ignorable="d">
 
-    <StackPanel Padding="20" Spacing="12">
+    <Grid Padding="20" RowDefinitions="Auto,*" RowSpacing="16">
+        <StackPanel Padding="20" Spacing="12" Margin="0,0,0,0">
 
-        <TextBlock
-            x:Name="TotalTimeText"
-            Text="Total: 0d 0h 0m 0s"
-            FontSize="28"
-            FontWeight="Bold" />
+            <TextBlock
+        x:Name="TotalTimeText"
+        Text="Total: 0d 0h 0m 0s"
+        FontSize="28"
+        FontWeight="Bold" />
 
-        <TextBlock Text="Progress today:" />
-        <ProgressBar x:Name="DayProgress" Maximum="86400" Height="20" />
+            <TextBlock Text="Progress today:" />
+            <ProgressBar x:Name="DayProgress" Maximum="86400" Height="20" />
 
-        <TextBlock Text="Progress this hour:" />
-        <ProgressBar x:Name="HourProgress" Maximum="3600" Height="20" />
+            <TextBlock Text="Progress this hour:" />
+            <ProgressBar x:Name="HourProgress" Maximum="3600" Height="20" />
 
-        <StackPanel Orientation="Horizontal" Spacing="10">
-            <Button Content="Reset" Click="ResetButton_Click" />
-            <Button Content="GitHub" Click="GithubButton_Click" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Content="Reset" Click="ResetButton_Click" />
+                <Button Content="GitHub" Click="GithubButton_Click" />
+            </StackPanel>
+
         </StackPanel>
 
-    </StackPanel>
+        <Border Grid.Row="1"
+                CornerRadius="12"
+                Padding="16"
+                Background="#141414"
+                BorderBrush="#22FFFFFF"
+                BorderThickness="1">
+            <lvc:PieChart
+                Series="{Binding AppUsageSeries, Mode=OneWay}"
+                LegendPosition="Right"
+                LegendTextPaint="{Binding LegendTextPaint}"
+                LegendTextSize="14">
+            </lvc:PieChart>
+        </Border>
+    </Grid>
+    
 </Page>
 

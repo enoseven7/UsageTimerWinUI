@@ -1,4 +1,3 @@
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -7,129 +6,172 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Text.Json;
-using UsageTimerWinUI.Models;
 using System.Linq;
+using UsageTimerWinUI.Models;
+using UsageTimerWinUI.Services;
 
 namespace UsageTimerWinUI.Views;
 
 public sealed partial class AppUsagePage : Page
 {
-    private readonly DispatcherTimer timer;
-    private readonly Dictionary<string, double> usage = new();
-    private readonly string savePath;
     public ObservableCollection<AppUsageRecord> AppListItems { get; set; } = new();
-
 
     public AppUsagePage()
     {
         this.InitializeComponent();
 
-        string folder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "UsageTimerWinUI");
-
-        Directory.CreateDirectory(folder);
-        savePath = Path.Combine(folder, "apps.json");
-
-        Load();
-
-        timer = new DispatcherTimer();
-        timer.Interval = TimeSpan.FromSeconds(1);
-        timer.Tick += Timer_Tick;
-        timer.Start();
+        // Defer initialization to Loaded to avoid doing work during construction
+        this.Loaded += AppUsagePage_Loaded;
+        this.Unloaded += AppUsagePage_Unloaded;
     }
 
-    // Win32 imports
-    private static class Win32
-    {
-        [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-        [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
-    }
-
-    private void Timer_Tick(object sender, object e)
-    {
-        var activeProcesses = Process.GetProcesses()
-            .Where(p => p.MainWindowHandle != IntPtr.Zero && !string.IsNullOrEmpty(p.ProcessName));
-
- 
-
-        foreach(var proc in activeProcesses)
-        {
-            
-            try
-            {
-                string name = proc.ProcessName.ToLower();
-                if (!usage.ContainsKey(name))
-                    usage[name] = 0;
-                usage[name] += 1;
-                Refresh(name);
-                if (DateTime.Now.Second % 10 == 0)
-                    Save();
-            }
-            catch { }
-        }
-    }
-
-    private ImageSource GetAppIcon(string exePath)
+    private void AppUsagePage_Loaded(object? sender, RoutedEventArgs e)
     {
         try
         {
-            var icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
-            using var bmp = icon.ToBitmap();
-            using var ms = new MemoryStream();
+            RefreshDropdown();
+            RefreshList();
+            AppTrackerService.Updated += OnTrackerTick;
+        }
+        catch (Exception ex)
+        {
+            // Don't crash the whole app; log the error for diagnosis
+            Debug.WriteLine($"AppUsagePage load error: {ex}");
+        }
+    }
+
+    private void AppUsagePage_Unloaded(object? sender, RoutedEventArgs e)
+    {
+        // Unsubscribe to avoid keeping references / firing after page disposal
+        AppTrackerService.Updated -= OnTrackerTick;
+        this.Loaded -= AppUsagePage_Loaded;
+        this.Unloaded -= AppUsagePage_Unloaded;
+    }
+
+    private void OnTrackerTick()
+    {
+        // Keep UI updates safe - marshal to UI thread if needed by the service/event
+        _ = DispatcherQueue.TryEnqueue(() => RefreshList());
+    }
+
+    private void RefreshDropdown()
+    {
+        try
+        {
+            ProcessDropdown.ItemsSource = AppTrackerService.GetRunningProcessNames();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"RefreshDropdown error: {ex}");
+            ProcessDropdown.ItemsSource = Array.Empty<string>();
+        }
+    }
+
+    private async void AddApp_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ContentDialog()
+        {
+            Title = "Add App (Process Name)",
+            Content = new TextBox { PlaceholderText = "e.g. discord, chrome, obs64" },
+            PrimaryButtonText = "Add",
+            CloseButtonText = "Cancel",
+            XamlRoot = this.XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            string app = (dialog.Content as TextBox)?.Text.Trim().ToLower() ?? "";
+            if (!string.IsNullOrWhiteSpace(app))
+            {
+                AppTrackerService.AddApp(app);
+                RefreshList();
+            }
+        }
+    }
+
+    private void RefreshList()
+    {
+        AppListItems.Clear();
+
+        foreach (var app in AppTrackerService.TrackedApps ?? Enumerable.Empty<string>())
+        {
+            try
+            {
+                AppTrackerService.Usage.TryGetValue(app, out var seconds);
+                var ts = TimeSpan.FromSeconds(seconds);
+
+                AppListItems.Add(new AppUsageRecord
+                {
+                    Name = app,
+                    Minutes = Math.Round(ts.TotalMinutes, 1),
+                    Formatted = ts.ToString(@"hh\:mm\:ss"),
+                    Icon = GetIcon(app)
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to build record for '{app}': {ex}");
+            }
+        }
+    }
+
+    private void ProcessDropdown_TextSubmitted(ComboBox sender, ComboBoxTextSubmittedEventArgs args)
+    {
+        string app = args.Text.Trim();
+
+        if (!string.IsNullOrWhiteSpace(app))
+        {
+            AppTrackerService.AddApp(app);
+            RefreshList();
+        }
+    }
+
+    private void RemoveButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is AppUsageRecord record)
+        {
+            AppTrackerService.RemoveApp(record.Name);
+            RefreshList();
+        }
+    }
+
+    private ImageSource? GetIcon(string processName)
+    {
+        try
+        {
+            var proc = Process.GetProcessesByName(processName).FirstOrDefault();
+            string? exe = null;
+            try
+            {
+                exe = proc?.MainModule?.FileName;
+            }
+            catch (Exception ex)
+            {
+                // Accessing MainModule can throw (access denied / platform issues). Log and continue.
+                Debug.WriteLine($"Unable to read MainModule for {processName}: {ex}");
+                return null;
+            }
+
+            if (exe == null) return null;
+
+            var icon = System.Drawing.Icon.ExtractAssociatedIcon(exe);
+            using var bmp = icon?.ToBitmap();
+            if (bmp == null) return null;
+
+            using MemoryStream ms = new();
             bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
             ms.Position = 0;
 
-            var img = new BitmapImage();
+            BitmapImage img = new();
             img.SetSource(ms.AsRandomAccessStream());
             return img;
         }
-        catch
+        catch (Exception ex)
         {
+            Debug.WriteLine($"GetIcon({processName}) failed: {ex}");
             return null;
-        }
-    }
-
-    private void Refresh(string name)
-    {
-        var record = AppListItems.FirstOrDefault(x => x.Name == name);
-        if (record == null)
-        {
-            string exePath = Process.GetProcessesByName(name).FirstOrDefault()?.MainModule?.FileName;
-            record = new AppUsageRecord
-            {
-                Name = name,
-                Icon = exePath != null ? GetAppIcon(exePath) : null
-            };
-            AppListItems.Add(record);
-        }
-
-        record.Minutes = Math.Round(usage[name] / 60.0);
-        record.Formatted = TimeSpan.FromSeconds(usage[name]).ToString(@"hh\:mm\:ss");
-    }
-
-    private void Save()
-    {
-        File.WriteAllText(savePath,
-            JsonSerializer.Serialize(usage, new JsonSerializerOptions { WriteIndented = true }));
-    }
-
-    private void Load()
-    {
-        if (!File.Exists(savePath)) return;
-
-        var json = File.ReadAllText(savePath);
-        var loaded = JsonSerializer.Deserialize<Dictionary<string, double>>(json);
-
-        if (loaded != null)
-        {
-            usage.Clear();
-            foreach (var kv in loaded)
-                usage[kv.Key] = kv.Value;
         }
     }
 }

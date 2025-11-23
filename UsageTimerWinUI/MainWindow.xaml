@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Window
     x:Class="UsageTimerWinUI.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -7,25 +6,26 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="UsageTimerWinUI">
+    Title="UsageTimer">
 
     <Window.SystemBackdrop>
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
     <Grid Background="Transparent">
-        <Grid x:Name="AppTitleBar" Background="Transparent" Height="32"/>
+        <Grid x:Name="AppTitleBar" Height="32" Background="Transparent"/>
 
-        <NavigationView x:Name="Nav" PaneDisplayMode="Left" IsBackButtonVisible="Collapsed">
+        <NavigationView x:Name="Nav"
+                        IsBackButtonVisible="Collapsed"
+                        IsTitleBarAutoPaddingEnabled="False"
+                        PaneDisplayMode="Left"
+                        Margin="0,32,0,0">
             <NavigationView.MenuItems>
-                <NavigationViewItem Content="Overview" Tag="overview" />
-                <NavigationViewItem Content="App Usage" Tag="apps" />
+                <NavigationViewItem Content="Overview" Tag="overview"/>
+                <NavigationViewItem Content="App Usage" Tag="apps"/>
             </NavigationView.MenuItems>
 
-            <Frame x:Name="ContentFrame" />
+            <Frame x:Name="ContentFrame"/>
         </NavigationView>
     </Grid>
 </Window>
-
-    
-    
