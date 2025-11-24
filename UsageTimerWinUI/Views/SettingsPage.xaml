@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="UsageTimerWinUI.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Padding="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Spacing="20">
+
+                <TextBlock Text="Settings"
+                           FontSize="24"
+                           FontWeight="Bold"/>
+
+                <!-- Theme -->
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Theme" VerticalAlignment="Center" Grid.Column="0" Margin="0,0,4,0"/>
+                    <ComboBox x:Name="ThemeCombo"
+                              Width="220"
+                              Grid.Column="1"
+                              SelectionChanged="ThemeCombo_SelectionChanged">
+                        <ComboBoxItem Content="System" Tag="System"/>
+                        <ComboBoxItem Content="Light" Tag="Light"/>
+                        <ComboBoxItem Content="Dark" Tag="Dark"/>
+                    </ComboBox>
+                </Grid>
+
+                <!-- Mica -->
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Use Mica background" VerticalAlignment="Center" Grid.Column="0"/>
+                    <ToggleSwitch x:Name="MicaToggle"
+                                  Grid.Column="1"
+                                  Toggled="MicaToggle_Toggled"/>
+                </Grid>
+
+                <!-- Data -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Data" FontWeight="SemiBold"/>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button Content="Open data folder"
+                                Click="OpenFolder_Click"
+                                MinWidth="180"/>
+                        <Button Content="Reset all usage data"
+                                Click="ResetData_Click"
+                                MinWidth="180"
+                                Background="#661F1F"
+                                Foreground="White"/>
+                    </StackPanel>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer note -->
+        <TextBlock Grid.Row="1"
+                   Text="Visual changes will take effect upon restart."
+                   FontSize="12"
+                   Opacity="0.7"
+                   Margin="4,12,0,0"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Center"/>
+    </Grid>
+</Page>

@@ -1,9 +1,10 @@
-using System;
 using Microsoft.UI;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using System;
+using System.IO;
 using UsageTimerWinUI.Services;
 using UsageTimerWinUI.Views;
 using WinRT;
@@ -17,11 +18,14 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         this.InitializeComponent();
+        SettingsService.Load();
+
         AppTrackerService.EnsureInitialized();
         SessionTimerService.Start();
         this.ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
+        ThemeHelper.ApplyTheme(this);
         TrySetMica();
 
         Nav.SelectionChanged += Nav_SelectionChanged;
@@ -40,17 +44,37 @@ public sealed partial class MainWindow : Window
 
     private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        if (args.SelectedItem is not NavigationViewItem item) return;
-
-        switch (item.Tag)
+        try
         {
-            case "overview":
-                ContentFrame.Navigate(typeof(OverviewPage));
-                break;
+            if (args.IsSettingsSelected)
+            {
+                ContentFrame.Navigate(typeof(SettingsPage));
+                return;
+            }
 
-            case "apps":
-                ContentFrame.Navigate(typeof(AppUsagePage));
-                break;
+            if (args.SelectedItem is not NavigationViewItem item) return;
+
+            switch (item.Tag)
+            {
+                case "overview":
+                    ContentFrame.Navigate(typeof(OverviewPage));
+                    break;
+
+                case "apps":
+                    ContentFrame.Navigate(typeof(AppUsagePage));
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log to app folder for post-mortem
+            try
+            {
+                string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UsageTimerWinUI");
+                Directory.CreateDirectory(folder);
+                File.AppendAllText(Path.Combine(folder, "navigation_error.txt"), $"{DateTime.Now}: {ex}\n\n");
+            }
+            catch { }
         }
     }
 
@@ -59,6 +83,9 @@ public sealed partial class MainWindow : Window
 
     private void TrySetMica()
     {
+        if (!SettingsService.UseMica || !MicaController.IsSupported())
+            return;
+
         _config = new SystemBackdropConfiguration
         {
             IsInputActive = true,

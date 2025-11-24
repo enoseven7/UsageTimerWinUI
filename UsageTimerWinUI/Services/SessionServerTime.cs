@@ -51,5 +51,13 @@ namespace UsageTimerWinUI.Services
 
             _timer.Start();
         }
+
+        public static void Reset()
+        {
+            TotalSeconds = 0;
+            File.WriteAllText(saveFile, TotalSeconds.ToString());
+            Updated?.Invoke();
+
+        }
     }
 }

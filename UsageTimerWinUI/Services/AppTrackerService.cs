@@ -217,6 +217,21 @@ namespace UsageTimerWinUI.Services
             Save();
         }
 
+        public static void Reset()
+        {
+            TrackedApps.Clear();
+            Usage.Clear();
+            DisplayNames.Clear();
+
+            try
+            {
+                if (File.Exists(file))
+                    File.Delete(file);
+            }
+            catch { }
+            Updated?.Invoke();
+        }
+
         private class AppSaveWrapper
         {
             public List<string>? TrackedApps { get; set; }
