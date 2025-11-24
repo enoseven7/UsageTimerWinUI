@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Xaml.Shapes;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -70,7 +71,6 @@ namespace UsageTimerWinUI
 
     public static class GlobalCrashLogger
     {
-        // Static constructor runs once when the class is "touched"
         static GlobalCrashLogger()
         {
             AppDomain.CurrentDomain.FirstChanceException += (s, e) =>
@@ -82,6 +82,8 @@ namespace UsageTimerWinUI
                         "UsageTimerWinUI");
 
                     Directory.CreateDirectory(folder);
+                    Debug.WriteLine($"SAVING TO: {folder}");
+
 
                     File.AppendAllText(
                         System.IO.Path.Combine(folder, "firstchance_log.txt"),
@@ -89,15 +91,14 @@ namespace UsageTimerWinUI
                 }
                 catch
                 {
-                    // Don't let the crash logger crash 💀
+                    
                 }
             };
         }
 
-        // THIS is what you were missing
         public static void Init()
         {
-            // Intentionally empty — calling it forces the static ctor to run
+            
         }
     }
 

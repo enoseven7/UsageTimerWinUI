@@ -8,14 +8,21 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading.Tasks;
 using UsageTimerWinUI.Models;
 using UsageTimerWinUI.Services;
+using Windows.Storage.Streams; // for AsRandomAccessStream extension
+
 
 namespace UsageTimerWinUI.Views;
 
 public sealed partial class AppUsagePage : Page
 {
     public ObservableCollection<AppUsageRecord> AppListItems { get; set; } = new();
+
+    public ObservableCollection<ProcessOption> AvailableProcesses { get; set; } = new();
 
     public AppUsagePage()
     {
@@ -60,12 +67,115 @@ public sealed partial class AppUsagePage : Page
     {
         try
         {
-            ProcessDropdown.ItemsSource = AppTrackerService.GetRunningProcessNames();
+            AvailableProcesses.Clear();
+
+            var names = AppTrackerService.GetRunningProcessNames();
+
+            // Add items first (fast), load icons asynchronously to avoid touching process handles on UI thread
+            foreach (var name in names)
+            {
+                var placeholder = new ProcessOption
+                {
+                    Name = name,
+                    Icon = null
+                };
+
+                AvailableProcesses.Add(placeholder);
+
+                // Load icon bytes in background; create BitmapImage on UI thread
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        var png = GetIconPngBytes(name);
+                        if (png != null)
+                        {
+                            _ = DispatcherQueue.TryEnqueue(() =>
+                            {
+                                var idx = AvailableProcesses.IndexOf(placeholder);
+                                if (idx >= 0)
+                                {
+                                    // create BitmapImage on UI thread from bytes
+                                    var img = new BitmapImage();
+                                    using var ms = new MemoryStream(png);
+                                    img.SetSource(ms.AsRandomAccessStream());
+
+                                    // replace item so UI updates (works without INotifyPropertyChanged)
+                                    AvailableProcesses[idx] = new ProcessOption { Name = placeholder.Name, Icon = img };
+                                }
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Background icon load failed for {name}: {ex}");
+                    }
+                });
+            }
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"RefreshDropdown error: {ex}");
-            ProcessDropdown.ItemsSource = Array.Empty<string>();
+        }
+    }
+
+    /// <summary>
+    /// Extracts the associated icon and returns PNG bytes (runs on background thread).
+    /// Returns null when icon can't be obtained.
+    /// </summary>
+    private static byte[]? GetIconPngBytes(string processName)
+    {
+        try
+        {
+            Process[] procs;
+            try
+            {
+                procs = Process.GetProcessesByName(processName);
+            }
+            catch
+            {
+                return null;
+            }
+
+            string? exe = null;
+            foreach (var p in procs)
+            {
+                try
+                {
+                    if (TryGetProcessExecutablePath(p.Id, out var path) && !string.IsNullOrEmpty(path))
+                    {
+                        exe = path;
+                        break;
+                    }
+                }
+                catch { }
+                finally
+                {
+                    try { p.Dispose(); } catch { }
+                }
+            }
+
+            if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
+                return null;
+
+            try
+            {
+                var icon = System.Drawing.Icon.ExtractAssociatedIcon(exe);
+                using var bmp = icon?.ToBitmap();
+                if (bmp == null) return null;
+
+                using var ms = new MemoryStream();
+                bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                return ms.ToArray();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -94,29 +204,50 @@ public sealed partial class AppUsagePage : Page
 
     private void RefreshList()
     {
-        AppListItems.Clear();
+        // Build a lookup for fast updates
+        var existing = AppListItems.ToDictionary(x => x.Name, x => x);
 
-        foreach (var app in AppTrackerService.TrackedApps ?? Enumerable.Empty<string>())
+        foreach (var app in AppTrackerService.TrackedApps)
         {
-            try
-            {
-                AppTrackerService.Usage.TryGetValue(app, out var seconds);
-                var ts = TimeSpan.FromSeconds(seconds);
+            AppTrackerService.Usage.TryGetValue(app, out var seconds);
+            var ts = TimeSpan.FromSeconds(seconds);
 
+            if (existing.TryGetValue(app, out var record))
+            {
+                // Update the existing item (DO NOT REPLACE IT)
+                record.Minutes = Math.Round(ts.TotalMinutes, 1);
+                record.Formatted = ts.ToString(@"hh\:mm\:ss");
+
+                //var file = FileVersionInfo.GetVersionInfo(app);
+                //record.DisplayName = file.ProductName ?? app;
+            }
+            else
+            {
+                var niceName = GetNiceDisplayName(app);
+                // Add new app
                 AppListItems.Add(new AppUsageRecord
                 {
                     Name = app,
                     Minutes = Math.Round(ts.TotalMinutes, 1),
+                    DisplayName = AppTrackerService.DisplayNames.ContainsKey(app) ? AppTrackerService.DisplayNames[app] : niceName,
                     Formatted = ts.ToString(@"hh\:mm\:ss"),
                     Icon = GetIcon(app)
                 });
             }
-            catch (Exception ex)
+        }
+
+        // OPTIONAL: Remove apps no longer tracked
+        // (Usually unnecessary)
+        foreach (var existingApp in existing.Keys)
+        {
+            if (!AppTrackerService.TrackedApps.Contains(existingApp))
             {
-                Debug.WriteLine($"Failed to build record for '{app}': {ex}");
+                var remove = existing[existingApp];
+                AppListItems.Remove(remove);
             }
         }
     }
+
 
     private void ProcessDropdown_TextSubmitted(ComboBox sender, ComboBoxTextSubmittedEventArgs args)
     {
@@ -131,7 +262,7 @@ public sealed partial class AppUsagePage : Page
 
     private void RemoveButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.DataContext is AppUsageRecord record)
+        if (AppList.SelectedItem is AppUsageRecord record)
         {
             AppTrackerService.RemoveApp(record.Name);
             RefreshList();
@@ -142,32 +273,62 @@ public sealed partial class AppUsagePage : Page
     {
         try
         {
-            var proc = Process.GetProcessesByName(processName).FirstOrDefault();
-            string? exe = null;
+            Process[] procs;
             try
             {
-                exe = proc?.MainModule?.FileName;
+                procs = Process.GetProcessesByName(processName);
             }
             catch (Exception ex)
             {
-                // Accessing MainModule can throw (access denied / platform issues). Log and continue.
-                Debug.WriteLine($"Unable to read MainModule for {processName}: {ex}");
+                Debug.WriteLine($"GetProcessesByName failed for {processName}: {ex}");
                 return null;
             }
 
-            if (exe == null) return null;
+            string? exe = null;
 
-            var icon = System.Drawing.Icon.ExtractAssociatedIcon(exe);
-            using var bmp = icon?.ToBitmap();
-            if (bmp == null) return null;
+            foreach (var p in procs)
+            {
+                try
+                {
+                    // Try a safe approach to get the executable path; skip instances we cannot access.
+                    if (TryGetProcessExecutablePath(p.Id, out var path) && !string.IsNullOrEmpty(path))
+                    {
+                        exe = path;
+                        break;
+                    }
+                }
+                catch
+                {
+                    // Access denied / protected process; try next instance
+                }
+                finally
+                {
+                    try { p.Dispose(); } catch { }
+                }
+            }
 
-            using MemoryStream ms = new();
-            bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-            ms.Position = 0;
+            if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
+                return null;
 
-            BitmapImage img = new();
-            img.SetSource(ms.AsRandomAccessStream());
-            return img;
+            try
+            {
+                var icon = System.Drawing.Icon.ExtractAssociatedIcon(exe);
+                using var bmp = icon?.ToBitmap();
+                if (bmp == null) return null;
+
+                using MemoryStream ms = new();
+                bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                ms.Position = 0;
+
+                BitmapImage img = new();
+                img.SetSource(ms.AsRandomAccessStream());
+                return img;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Icon extraction failed for {exe}: {ex}");
+                return null;
+            }
         }
         catch (Exception ex)
         {
@@ -175,4 +336,126 @@ public sealed partial class AppUsagePage : Page
             return null;
         }
     }
+
+    // Use QueryFullProcessImageName via a handle opened with PROCESS_QUERY_LIMITED_INFORMATION
+    private static bool TryGetProcessExecutablePath(int pid, out string? path)
+    {
+        path = null;
+        const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+        IntPtr handle = IntPtr.Zero;
+        try
+        {
+            handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+            if (handle == IntPtr.Zero)
+                return false;
+
+            var sb = new StringBuilder(1024);
+            int size = sb.Capacity;
+            if (QueryFullProcessImageName(handle, 0, sb, ref size))
+            {
+                path = sb.ToString();
+                return true;
+            }
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            if (handle != IntPtr.Zero)
+                CloseHandle(handle);
+        }
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr OpenProcess(uint processAccess, bool bInheritHandle, int processId);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern bool QueryFullProcessImageName(IntPtr hProcess, int dwFlags, StringBuilder lpExeName, ref int lpdwSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CloseHandle(IntPtr hObject);
+
+
+    private async void RenameButton_Click(object sender, RoutedEventArgs e)
+    {
+        if(AppList.SelectedItem is not AppUsageRecord record)
+            return;
+
+        var dialog = new ContentDialog()
+        {
+            Title = $"Rename {record.Name}",
+            Content = new TextBox { Text = record.DisplayName },
+            PrimaryButtonText = "Save",
+            CloseButtonText = "Cancel",
+            XamlRoot = this.XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+
+        if (result == ContentDialogResult.Primary)
+        {
+            string newName = (dialog.Content as TextBox)?.Text.Trim() ?? record.DisplayName;
+            if (!string.IsNullOrWhiteSpace(newName))
+            {
+                AppTrackerService.SetDisplayName(record.Name, newName);
+                RefreshList();
+            }
+        }
+    }
+
+    private void ProcessDropdown_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (ProcessDropdown.SelectedValue is string name && !string.IsNullOrWhiteSpace(name))
+        {
+            AppTrackerService.AddApp(name);
+            RefreshList();
+
+            // Reset text/selection so repeated adds work predictably
+            ProcessDropdown.SelectedItem = null;
+            ProcessDropdown.Text = "";
+        }
+    }
+
+    private string GetNiceDisplayName(string processName)
+    {
+        try
+        {
+            // Try get a running process by that name
+            var proc = Process.GetProcessesByName(processName).FirstOrDefault();
+            string? exe = null;
+
+            try
+            {
+                exe = proc?.MainModule?.FileName;
+            }
+            catch
+            {
+                // Access to MainModule can fail, ignore
+            }
+
+            if (!string.IsNullOrEmpty(exe) && File.Exists(exe))
+            {
+                var info = FileVersionInfo.GetVersionInfo(exe);
+
+                // ProductName or FileDescription often look nice ("Discord", "Google Chrome", etc.)
+                if (!string.IsNullOrWhiteSpace(info.ProductName))
+                    return info.ProductName;
+
+                if (!string.IsNullOrWhiteSpace(info.FileDescription))
+                    return info.FileDescription;
+            }
+        }
+        catch
+        {
+            // swallow and fall back
+        }
+
+        // Fallback: capitalised process name
+        return char.ToUpper(processName[0]) + processName.Substring(1);
+    }
+
 }

@@ -73,12 +73,12 @@ namespace UsageTimerWinUI.Views
         private void StartTimer()
         {
             // timer for total use
-            timer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(1)
-            };
-            timer.Tick += Timer_Tick;
-            timer.Start();
+            SessionTimerService.Updated += OnGlobalTimerTick;
+        }
+
+        private void OnGlobalTimerTick()
+        {
+            DispatcherQueue.TryEnqueue(UpdateTimeUi);
         }
 
         private void OverviewPage_Loaded(object sender, RoutedEventArgs e)
@@ -93,6 +93,7 @@ namespace UsageTimerWinUI.Views
 
             LegendTextPaint = new SolidColorPaint(new SKColor(240, 240, 240));
 
+            /*
             _pieChart = new PieChart
             {
                 LegendPosition = LiveChartsCore.Measure.LegendPosition.Right,
@@ -103,9 +104,10 @@ namespace UsageTimerWinUI.Views
             // ensure the chart starts with no series to avoid mixing types from other sources
             _pieChart.Series = Array.Empty<ISeries>();
             ChartContainer.Child = _pieChart;
+            */
 
             LoadTime();
-            BuildSeries();
+            //BuildSeries();
             AppTrackerService.Updated += OnUsageUpdated;
 
             
@@ -221,14 +223,16 @@ namespace UsageTimerWinUI.Views
             if (TotalTimeText == null || DayProgress == null || HourProgress == null)
                 return;
 
-            int days = (int)(totalSeconds / 86400);
-            int hours = (int)((totalSeconds % 86400) / 3600);
-            int minutes = (int)((totalSeconds % 3600) / 60);
-            int seconds = (int)(totalSeconds % 60);
+            double total = SessionTimerService.TotalSeconds;
+
+            int days = (int)(total / 86400);
+            int hours = (int)((total % 86400) / 3600);
+            int minutes = (int)((total % 3600) / 60);
+            int seconds = (int)(total % 60);
 
             TotalTimeText.Text = $"Total: {days}d {hours}h {minutes}m {seconds}s";
-            DayProgress.Value = totalSeconds % 86400;
-            HourProgress.Value = totalSeconds % 3600;
+            DayProgress.Value = total % 86400;
+            HourProgress.Value = total % 3600;
         }
 
         private void ResetButton_Click(object sender, RoutedEventArgs e)

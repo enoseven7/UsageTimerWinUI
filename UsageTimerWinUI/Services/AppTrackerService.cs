@@ -10,6 +10,8 @@ namespace UsageTimerWinUI.Services
     public static class AppTrackerService
     {
         public static Dictionary<string, double> Usage { get; private set; } = new();
+
+        public static Dictionary<string, string> DisplayNames { get; private set; } = new();
         public static List<string> TrackedApps { get; private set; } = new();
 
         public static event Action? Updated;
@@ -60,15 +62,50 @@ namespace UsageTimerWinUI.Services
             }
         }
 
+        // Safely enumerate processes and skip protected/system processes.
         public static List<string> GetRunningProcessNames()
         {
-            return Process.GetProcesses()
-                .Where(p => p.MainWindowHandle != IntPtr.Zero)
-                .Select(p => p.ProcessName)
-                .Distinct()
-                .OrderBy(x => x)
-                .ToList();
+            var list = new List<string>();
+
+            Process[] processes;
+            try
+            {
+                processes = Process.GetProcesses();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetProcesses failed: {ex}");
+                return list;
+            }
+
+            foreach (var p in processes)
+            {
+                try
+                {
+                    // Accessing MainWindowHandle or ProcessName can throw for protected processes.
+                    if (p.MainWindowHandle == IntPtr.Zero)
+                        continue;
+
+                    string name = p.ProcessName;
+
+                    if (!string.IsNullOrWhiteSpace(name) && !list.Contains(name))
+                        list.Add(name);
+                }
+                catch (Exception ex)
+                {
+                    // Skip protected/system processes — log for diagnostics but do not crash.
+                    Debug.WriteLine($"Skipping process (id={p.Id}): {ex.Message}");
+                }
+                finally
+                {
+                    try { p.Dispose(); } catch { }
+                }
+            }
+
+            list.Sort();
+            return list;
         }
+
 
         public static void Tick()
         {
@@ -90,7 +127,8 @@ namespace UsageTimerWinUI.Services
             var wrapper = new AppSaveWrapper
             {
                 TrackedApps = TrackedApps,
-                Usage = Usage
+                Usage = Usage,
+                DisplayNames = DisplayNames
             };
 
             File.WriteAllText(file,
@@ -115,6 +153,7 @@ namespace UsageTimerWinUI.Services
                                     .Select(e => e.GetString()!)
                                     .ToList();
                 }
+
 
                 // Read usage object and coerce any numeric type to double
                 Usage = new Dictionary<string, double>();
@@ -150,19 +189,40 @@ namespace UsageTimerWinUI.Services
                     if (!Usage.ContainsKey(app))
                         Usage[app] = 0;
                 }
+
+                if (root.TryGetProperty("DisplayNames", out var dnElem) &&
+                    dnElem.ValueKind == JsonValueKind.Object)
+                {
+                    DisplayNames = dnElem.EnumerateObject()
+                                         .Where(p => p.Value.ValueKind == JsonValueKind.String)
+                                         .ToDictionary(p => p.Name, p => p.Value.GetString() ?? p.Name);
+                }
+                else
+                {
+                    DisplayNames = new();
+                }
             }
             catch
             {
                 // ignore corrupt file but don't leave Usage null
                 Usage ??= new Dictionary<string, double>();
                 TrackedApps ??= new List<string>();
+                DisplayNames ??= new();
             }
+        }
+
+        public static void SetDisplayName(string processName, string displayName)
+        {
+            DisplayNames[processName] = displayName;
+            Save();
         }
 
         private class AppSaveWrapper
         {
             public List<string>? TrackedApps { get; set; }
             public Dictionary<string, double>? Usage { get; set; }
+
+            public Dictionary<string, string>? DisplayNames { get; set; }
         }
     }
 }

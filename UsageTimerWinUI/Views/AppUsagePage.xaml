@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:CommunityToolkit.WinUI.UI.Controls"
+    xmlns:models="using:UsageTimerWinUI.Models"
     mc:Ignorable="d">
 
     <Grid Padding="20" RowDefinitions="Auto,*,Auto" RowSpacing="12">
@@ -14,8 +15,19 @@
                   PlaceholderText="Search running apps..."
                   Width="300"
                   IsEditable="True"
-                  TextSubmitted="ProcessDropdown_TextSubmitted"
-                  />
+                  ItemsSource="{x:Bind AvailableProcesses, Mode=OneWay}"
+                  SelectedValuePath="Name"
+                  SelectionChanged="ProcessDropdown_SelectionChanged"
+                  TextSubmitted="ProcessDropdown_TextSubmitted">
+            <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="models:ProcessOption">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Padding="4">
+                        <Image Width="20" Height="20" Source="{Binding Icon}" />
+                        <TextBlock VerticalAlignment="Center" Text="{Binding Name}" />
+                    </StackPanel>
+                </DataTemplate>
+            </ComboBox.ItemTemplate>
+        </ComboBox>
 
         <!-- LIST OF TRACKED APPS -->
         <controls:DataGrid x:Name="AppList"
@@ -33,7 +45,7 @@
                         </DataTemplate>
                     </controls:DataGridTemplateColumn.CellTemplate>
                 </controls:DataGridTemplateColumn>
-                <controls:DataGridTextColumn Header="App" Binding="{Binding Name}" Width="*" />
+                <controls:DataGridTextColumn Header="App" Binding="{Binding FinalName}" Width="*" />
                 <controls:DataGridTextColumn Header="Minutes" Binding="{Binding Minutes}" Width="120" />
                 <controls:DataGridTextColumn Header="Time" Binding="{Binding Formatted}" Width="160" />
 
@@ -44,5 +56,10 @@
                 Content="Remove selected"
                 HorizontalAlignment="Left"
                 Click="RemoveButton_Click"/>
+
+        <Button Grid.Row="2"
+                Content="Rename"
+                HorizontalAlignment="Right"
+                Click="RenameButton_Click"/>
     </Grid>
 </Page>

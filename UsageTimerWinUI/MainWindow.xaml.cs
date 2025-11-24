@@ -18,6 +18,7 @@ public sealed partial class MainWindow : Window
     {
         this.InitializeComponent();
         AppTrackerService.EnsureInitialized();
+        SessionTimerService.Start();
         this.ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
