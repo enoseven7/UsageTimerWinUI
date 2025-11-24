@@ -28,6 +28,7 @@ public sealed partial class AppUsagePage : Page
 
     private void AppUsagePage_Loaded(object? sender, RoutedEventArgs e)
     {
+        AppTrackerService.EnsureInitialized();
         try
         {
             RefreshDropdown();

@@ -37,6 +37,8 @@ namespace UsageTimerWinUI
         {
             InitializeComponent();
 
+            GlobalCrashLogger.Init();
+
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
                 File.WriteAllText(
@@ -65,4 +67,39 @@ namespace UsageTimerWinUI
             _window.Activate();
         }
     }
+
+    public static class GlobalCrashLogger
+    {
+        // Static constructor runs once when the class is "touched"
+        static GlobalCrashLogger()
+        {
+            AppDomain.CurrentDomain.FirstChanceException += (s, e) =>
+            {
+                try
+                {
+                    string folder = System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "UsageTimerWinUI");
+
+                    Directory.CreateDirectory(folder);
+
+                    File.AppendAllText(
+                        System.IO.Path.Combine(folder, "firstchance_log.txt"),
+                        $"{DateTime.Now}: {e.Exception}\n\n");
+                }
+                catch
+                {
+                    // Don't let the crash logger crash 💀
+                }
+            };
+        }
+
+        // THIS is what you were missing
+        public static void Init()
+        {
+            // Intentionally empty — calling it forces the static ctor to run
+        }
+    }
+
+
 }

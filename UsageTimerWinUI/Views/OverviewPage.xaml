@@ -36,13 +36,16 @@
                 Padding="16"
                 Background="#141414"
                 BorderBrush="#22FFFFFF"
+                x:Name="ChartContainer"
                 BorderThickness="1">
+            <!--
             <lvc:PieChart
-                Series="{Binding AppUsageSeries, Mode=OneWay}"
+                x:Name="UsagePieChart"
                 LegendPosition="Right"
                 LegendTextPaint="{Binding LegendTextPaint}"
                 LegendTextSize="14">
             </lvc:PieChart>
+            -->
         </Border>
     </Grid>
     

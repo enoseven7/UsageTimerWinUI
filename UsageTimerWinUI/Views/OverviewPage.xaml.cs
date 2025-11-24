@@ -13,6 +13,7 @@ using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using SkiaSharp;
 using UsageTimerWinUI.Services;
+using LiveChartsCore.SkiaSharpView.WinUI;
 
 namespace UsageTimerWinUI.Views
 {
@@ -21,6 +22,8 @@ namespace UsageTimerWinUI.Views
         private double totalSeconds = 0;
         private DispatcherTimer timer;
         private string saveFile;
+
+        private PieChart? _pieChart;
 
         public SolidColorPaint LegendTextPaint { get; set; } = new SolidColorPaint(new SKColor(240, 240, 240));
 
@@ -86,7 +89,20 @@ namespace UsageTimerWinUI.Views
 
             this.DataContext = this;
 
+            AppTrackerService.EnsureInitialized();
+
             LegendTextPaint = new SolidColorPaint(new SKColor(240, 240, 240));
+
+            _pieChart = new PieChart
+            {
+                LegendPosition = LiveChartsCore.Measure.LegendPosition.Right,
+                LegendTextPaint = LegendTextPaint,
+                LegendTextSize = 14
+            };
+
+            // ensure the chart starts with no series to avoid mixing types from other sources
+            _pieChart.Series = Array.Empty<ISeries>();
+            ChartContainer.Child = _pieChart;
 
             LoadTime();
             BuildSeries();
@@ -100,8 +116,15 @@ namespace UsageTimerWinUI.Views
         private void OverviewPage_Unloaded(object sender, RoutedEventArgs e)
         {
             _isLoaded = false;
-            timer.Stop();
+            timer?.Stop();
             AppTrackerService.Updated -= OnUsageUpdated;
+
+            if (_pieChart != null)
+            {
+                _pieChart.Series = Array.Empty<ISeries>();
+                ChartContainer.Child = null; 
+                _pieChart = null;
+            }
         }
 
         private void OnUsageUpdated()
@@ -112,41 +135,63 @@ namespace UsageTimerWinUI.Views
 
         private void BuildSeries()
         {
+            if (_pieChart == null)
+                return;
+
             try
             {
                 var usage = AppTrackerService.Usage;
-
-                if (usage == null || usage.Count == 0)
-                {
-                    AppUsageSeries = Array.Empty<ISeries>();
-                    return;
-                }
 
                 var series = new List<ISeries>();
 
                 foreach (var kv in usage.OrderByDescending(x => x.Value))
                 {
                     var name = kv.Key;
-                    var minutes = Math.Round(kv.Value / 60, 1);
+                    // ensure the numeric value is treated as double to avoid boxed-int issues
+                    var valueAsDouble = Convert.ToDouble(kv.Value);
+                    var minutes = Math.Round(valueAsDouble / 60.0, 1);
 
                     if (minutes <= 0)
                         continue;
 
+                    // explicitly create a double[] so LiveCharts sees doubles (not boxed ints)
                     series.Add(new PieSeries<double>
                     {
                         Name = name,
-                        Values = new[] { minutes },
+                        Values = new double[] { minutes },
                         DataLabelsPaint = new SolidColorPaint(SKColors.White),
                         DataLabelsSize = 12,
                         DataLabelsPosition = LiveChartsCore.Measure.PolarLabelsPosition.Outer
                     });
                 }
 
-                AppUsageSeries = series.ToArray();
+                // assign on UI thread and defensively clear previous series first
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    try
+                    {
+                        _pieChart.Series = Array.Empty<ISeries>();
+                        _pieChart.Series = series.ToArray();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Failed to assign pie series: {ex}");
+                        // dump diagnostic types for debugging
+                        foreach (var s in series)
+                        {
+                            if (s is PieSeries<double> ps && ps.Values != null)
+                            {
+                                foreach (var v in ps.Values)
+                                    Debug.WriteLine($"Value type: {v.GetType().FullName ?? "null"}");
+                            }
+                        }
+                    }
+                });
             }
-            catch
+
+            catch (Exception ex)
             {
-                // if LiveCharts or anything else chokes, don't crash the whole app
+                Debug.WriteLine($"Failed to build app usage series: {ex}");
                 AppUsageSeries = Array.Empty<ISeries>();
             }
         }
