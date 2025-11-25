@@ -3,6 +3,8 @@ using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Diagnostics;
 using UsageTimerWinUI.Services;
+using Windows.ApplicationModel;
+
 
 namespace UsageTimerWinUI.Views
 {
@@ -12,6 +14,7 @@ namespace UsageTimerWinUI.Views
         {
             this.InitializeComponent();
             LoadCurrentSettings();
+            LoadStartupState();
         }
 
         private void LoadCurrentSettings()
@@ -105,5 +108,29 @@ namespace UsageTimerWinUI.Views
             SessionTimerService.Reset();
             AppTrackerService.Reset();
         }
+
+        private async void StartupToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (StartupToggle.IsOn)
+            {
+                var state = await StartupManager.RequestEnableAsync();
+
+                if (state != StartupTaskState.Enabled)
+                {
+                    // User refused or startup is disabled in system settings
+                    StartupToggle.IsOn = false;
+                }
+            }
+            else
+            {
+                await StartupManager.DisableAsync();
+            }
+        }
+
+        private async void LoadStartupState()
+        {
+            StartupToggle.IsOn = await StartupManager.IsEnabledAsync();
+        }
+
     }
 }

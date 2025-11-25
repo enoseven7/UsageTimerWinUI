@@ -51,6 +51,18 @@
                                   Toggled="MicaToggle_Toggled"/>
                 </Grid>
 
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Run app on startup" VerticalAlignment="Center" Grid.Column="0"/>
+                    <ToggleSwitch x:Name="StartupToggle"
+                                  Grid.Column="1"
+                                  Toggled="StartupToggle_Toggled"/>
+                </Grid>
+
                 <!-- Data -->
                 <StackPanel Spacing="8">
                     <TextBlock Text="Data" FontWeight="SemiBold"/>
