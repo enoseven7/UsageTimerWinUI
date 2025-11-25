@@ -127,6 +127,12 @@ namespace UsageTimerWinUI.Views
             }
         }
 
+        private void TrayToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            bool enabled = TrayToggle.IsOn;
+            SettingsService.SetMinimizeToTray(enabled);
+        }
+
         private async void LoadStartupState()
         {
             StartupToggle.IsOn = await StartupManager.IsEnabledAsync();

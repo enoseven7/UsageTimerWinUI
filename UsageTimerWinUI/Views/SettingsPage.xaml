@@ -63,6 +63,18 @@
                                   Toggled="StartupToggle_Toggled"/>
                 </Grid>
 
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Minimize to system tray on close" VerticalAlignment="Center" Grid.Column="0"/>
+                    <ToggleSwitch x:Name="TrayToggle"
+                  Grid.Column="1"
+                  Toggled="TrayToggle_Toggled"/>
+                </Grid>
+
                 <!-- Data -->
                 <StackPanel Spacing="8">
                     <TextBlock Text="Data" FontWeight="SemiBold"/>

@@ -9,6 +9,8 @@ namespace UsageTimerWinUI.Services
         public static string Theme { get; private set; } = "System"; // "System", "Light", "Dark"
         public static bool UseMica { get; private set; } = true;
 
+        public static bool MinimizeToTray { get; set; } = true;
+
         private static readonly string folder =
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                          "UsageTimerWinUI");
@@ -19,6 +21,8 @@ namespace UsageTimerWinUI.Services
         {
             public string? Theme { get; set; }
             public bool? UseMica { get; set; }
+
+            public bool? MinimizeToTray { get; set; }
         }
 
         public static void Load()
@@ -37,6 +41,9 @@ namespace UsageTimerWinUI.Services
 
                 if (dto.UseMica.HasValue)
                     UseMica = dto.UseMica.Value;
+
+                if (dto.MinimizeToTray.HasValue)
+                    MinimizeToTray = dto.MinimizeToTray.Value;
             }
             catch
             {
@@ -52,7 +59,8 @@ namespace UsageTimerWinUI.Services
                 var dto = new SettingsDto
                 {
                     Theme = Theme,
-                    UseMica = UseMica
+                    UseMica = UseMica,
+                    MinimizeToTray = MinimizeToTray
                 };
 
                 File.WriteAllText(path,
@@ -73,6 +81,12 @@ namespace UsageTimerWinUI.Services
         public static void SetUseMica(bool value)
         {
             UseMica = value;
+            Save();
+        }
+
+        public static void SetMinimizeToTray(bool value)
+        {
+            MinimizeToTray = value;
             Save();
         }
 
