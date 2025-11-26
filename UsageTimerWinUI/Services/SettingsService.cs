@@ -9,6 +9,7 @@ namespace UsageTimerWinUI.Services
         public static string Theme { get; private set; } = "System"; // "System", "Light", "Dark"
         public static bool UseMica { get; private set; } = true;
 
+        public static bool RunOnStartup { get; set; } = false;
         public static bool MinimizeToTray { get; set; } = true;
 
         private static readonly string folder =
@@ -22,6 +23,7 @@ namespace UsageTimerWinUI.Services
             public string? Theme { get; set; }
             public bool? UseMica { get; set; }
 
+            public bool? RunOnStartup { get; set; }
             public bool? MinimizeToTray { get; set; }
         }
 
@@ -42,6 +44,9 @@ namespace UsageTimerWinUI.Services
                 if (dto.UseMica.HasValue)
                     UseMica = dto.UseMica.Value;
 
+                if (dto.RunOnStartup.HasValue)
+                    RunOnStartup = dto.RunOnStartup.Value;
+
                 if (dto.MinimizeToTray.HasValue)
                     MinimizeToTray = dto.MinimizeToTray.Value;
             }
@@ -60,6 +65,7 @@ namespace UsageTimerWinUI.Services
                 {
                     Theme = Theme,
                     UseMica = UseMica,
+                    RunOnStartup = RunOnStartup,
                     MinimizeToTray = MinimizeToTray
                 };
 
@@ -87,6 +93,12 @@ namespace UsageTimerWinUI.Services
         public static void SetMinimizeToTray(bool value)
         {
             MinimizeToTray = value;
+            Save();
+        }
+
+        public static void SetRunOnStartup(bool value)
+        {
+            RunOnStartup = value;
             Save();
         }
 

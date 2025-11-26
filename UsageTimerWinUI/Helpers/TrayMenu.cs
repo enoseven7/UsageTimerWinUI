@@ -7,6 +7,7 @@ namespace UsageTimerWinUI.Helpers
     {
         private const int MF_STRING = 0x0000;
         private const int TPM_RIGHTBUTTON = 0x0002;
+        private const int TPM_RETURNCMD = 0x0100;
 
         [DllImport("user32.dll")]
         private static extern IntPtr CreatePopupMenu();
@@ -56,7 +57,7 @@ namespace UsageTimerWinUI.Helpers
 
             uint selected = TrackPopupMenu(
                 menu,
-                TPM_RIGHTBUTTON,
+                TPM_RIGHTBUTTON | TPM_RETURNCMD,
                 x,
                 y,
                 0,
@@ -70,7 +71,8 @@ namespace UsageTimerWinUI.Helpers
                     break;
 
                 case 2:
-                    Environment.Exit(0);
+                    //(App.Current as App)?._window?.RequestTrueClose();
+                    App._window?.RequestTrueClose();
                     break;
             }
         }

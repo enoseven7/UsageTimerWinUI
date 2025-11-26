@@ -28,7 +28,7 @@ namespace UsageTimerWinUI
     /// </summary>
     public partial class App : Application
     {
-        public Window? _window;
+        public static MainWindow? _window;
 
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code

@@ -9,7 +9,7 @@ namespace UsageTimerWinUI.Services
 {
     public static class StartupManager
     {
-        private const string TaskId = "AppStartup";
+        private const string TaskId = "UsageTimerWinUIStartupTask";
 
         public static async Task<bool> IsEnabledAsync()
         {

@@ -111,6 +111,8 @@ namespace UsageTimerWinUI.Views
 
         private async void StartupToggle_Toggled(object sender, RoutedEventArgs e)
         {
+            bool enabled = StartupToggle.IsOn;
+            SettingsService.SetRunOnStartup(enabled);
             if (StartupToggle.IsOn)
             {
                 var state = await StartupManager.RequestEnableAsync();

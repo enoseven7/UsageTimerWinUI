@@ -5,15 +5,17 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
-using System.IO;
 using System.Diagnostics;
+using System.IO;
 using UsageTimerWinUI.Helpers;
 using UsageTimerWinUI.Services;
 using UsageTimerWinUI.Views;
 using Windows.UI.WindowManagement;
 using WinRT;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 using AppWindow = Microsoft.UI.Windowing.AppWindow;
 using WindowId = Microsoft.UI.WindowId;
+using System.Runtime.InteropServices;
 
 namespace UsageTimerWinUI;
 
@@ -23,9 +25,14 @@ public sealed partial class MainWindow : Window
     private bool minimizeToTrayEnabled = true;
     private AppWindow appWindow;
     private TrayIcon? trayIcon;
+
+    private bool trayInitialized = false;
+
+    private bool allowClose = false;
     public MainWindow()
     {
         this.InitializeComponent();
+        this.Activated += MainWindow_Activated;
         SettingsService.Load();
 
         AppTrackerService.EnsureInitialized();
@@ -33,62 +40,19 @@ public sealed partial class MainWindow : Window
         this.ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
-        // WinUI 3 API to get AppWindow
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
-        appWindow = AppWindow.GetFromWindowId(windowId);
-
-        // Attach closing event
-        appWindow.Closing += AppWindow_Closing;
+        InitAppWindow();
 
         ThemeHelper.ApplyTheme(this);
         TrySetMica();
 
-        trayIcon = new TrayIcon(this, new System.Drawing.Icon("Assets/timerIcon.ico"));
+
+
+        
 
         Nav.SelectionChanged += Nav_SelectionChanged;
         ContentFrame.Navigate(typeof(OverviewPage));
 
         StartGlobalAppTimer();
-    }
-
-    private System.Drawing.Icon GetAppIconHandle()
-    {
-        // Try common asset locations (case-insensitive variants)
-        string[] candidates = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "assets", "timerIcon.ico"),
-            Path.Combine(AppContext.BaseDirectory, "Assets", "timerIcon.ico"),
-            Path.Combine(AppContext.BaseDirectory, "timerIcon.ico")
-        };
-
-        string iconPath = null;
-        foreach (var c in candidates)
-        {
-            if (File.Exists(c))
-            {
-                iconPath = c;
-                break;
-            }
-        }
-
-        // For packaged apps, try the installed location as a fallback
-        if (iconPath == null)
-        {
-            try
-            {
-                var pkgPath = Windows.ApplicationModel.Package.Current.InstalledLocation.Path;
-                var pkgCandidate = Path.Combine(pkgPath, "assets", "timerIcon.ico");
-                if (File.Exists(pkgCandidate)) iconPath = pkgCandidate;
-            }
-            catch { /* not packaged or API unavailable */ }
-        }
-
-        if (iconPath == null)
-            throw new FileNotFoundException("Icon not found. Place 'timerIcon.ico' in an 'assets' (or 'Assets') folder and set its Build Action to 'Content' and 'Copy to Output Directory' to 'Always' or 'Copy if newer'.");
-
-        using var icon = new System.Drawing.Icon(iconPath);
-        return icon;
     }
 
     private void StartGlobalAppTimer()
@@ -99,15 +63,72 @@ public sealed partial class MainWindow : Window
         _trackerTimer.Start();
     }
 
-    private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
+    private void MainWindow_Activated(object sender, WindowActivatedEventArgs e)
     {
-        Debug.WriteLine("MainWindow: Closing event triggered.");
+        if (trayInitialized)
+            return;
+
+        trayInitialized = true;
+
+        InitTrayIcon();
+    }
+
+    private void InitTrayIcon()
+    {
+        var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "timerIcon.ico");
+        var icon = System.IO.File.Exists(iconPath)
+            ? new System.Drawing.Icon(iconPath)
+            : System.Drawing.SystemIcons.Application;
+
+        trayIcon = new TrayIcon(
+            icon,
+            "UsageTimer",
+            onOpen: () =>
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    appWindow.Show();
+                    this.Activate();
+                });
+            },
+            onExit: () =>
+            {
+                Debug.WriteLine("TRAY EXIT CLICKED");
+
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    Debug.WriteLine("TRAY EXIT CALLBACK INVOKED");
+                    this.RequestTrueClose();
+                });
+            });
+    }
+    private void InitAppWindow()
+    {
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        WindowId windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+        appWindow = AppWindow.GetFromWindowId(windowId);
+
+        appWindow.Closing += MainWindow_Closing;
+    }
+    private void MainWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        Debug.Write(allowClose);
+        if (allowClose)
+        {
+            trayIcon?.Dispose();
+            return;
+        }
+
         if (SettingsService.MinimizeToTray)
         {
-            Debug.WriteLine("MainWindow: Minimize to tray is enabled, cancelling close and hiding window.");
+            // cancel real close, hide to tray
             args.Cancel = true;
-            appWindow.Hide();
+            sender.Hide();
+            return;
         }
+        // really exit
+        trayIcon?.Dispose();
+        
     }
 
     private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -164,4 +185,13 @@ public sealed partial class MainWindow : Window
         _micaController.AddSystemBackdropTarget(this.As<ICompositionSupportsSystemBackdrop>());
         _micaController.SetSystemBackdropConfiguration(_config);
     }
+
+    public void RequestTrueClose()
+    {
+        Debug.WriteLine("RequestTrueClose HIT");
+        allowClose = true;
+        this.Close();
+    }
+
+
 }
