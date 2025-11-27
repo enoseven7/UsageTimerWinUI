@@ -34,8 +34,8 @@
         <Border Grid.Row="1"
                 CornerRadius="12"
                 Padding="16"
-                Background="#141414"
-                BorderBrush="#22FFFFFF"
+                Background="{ThemeResource CardBackgroundFillColorDefault}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 x:Name="ChartContainer"
                 BorderThickness="1">
             <lvc:CartesianChart
@@ -43,7 +43,9 @@
                 XAxes="{Binding XAxis}"
                 YAxes="{Binding YAxis}"
                 LegendPosition="Right"
-                ZoomMode="None"/>
+                ZoomMode="None"
+                LegendTextPaint="{Binding LegendTextPaint}"
+                x:Name="UsageChart"/>
         </Border>
     </Grid>
     

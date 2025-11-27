@@ -26,7 +26,16 @@ namespace UsageTimerWinUI.Views
 
         private PieChart? _pieChart;
 
-        public SolidColorPaint LegendTextPaint { get; set; } = new SolidColorPaint(new SKColor(240, 240, 240));
+        public SolidColorPaint _legendTextPaint;
+        public SolidColorPaint LegendTextPaint
+        {
+            get => _legendTextPaint;
+            set
+            {
+                _legendTextPaint = value;
+                OnPropertyChanged();
+            }
+        }
 
         public ISeries[] UsageSeries { get; set;  }
         public Axis[] XAxis { get; set; }
@@ -53,12 +62,19 @@ namespace UsageTimerWinUI.Views
             _series = new ColumnSeries<double>
             {
                 Values = _values,
+                Name = "App Usage",
                 Fill = new SolidColorPaint(new SKColor(100, 180, 255)),
                 Stroke = null,
                 DataLabelsPaint = new SolidColorPaint(SKColors.White),
                 DataLabelsSize = 14,
                 DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End
             };
+
+            LegendTextPaint = new SolidColorPaint(
+                App.Current.RequestedTheme == ApplicationTheme.Dark
+                    ? new SKColor(240, 240, 240)
+                    : new SKColor(20, 20, 20)
+                    );
 
             UsageSeries = new ISeries[] { _series };
 
@@ -124,7 +140,7 @@ namespace UsageTimerWinUI.Views
 
             AppTrackerService.EnsureInitialized();
 
-            LegendTextPaint = new SolidColorPaint(new SKColor(240, 240, 240));
+            //LegendTextPaint = new SolidColorPaint(new SKColor(240, 240, 240));
 
             /*
             _pieChart = new PieChart
@@ -183,9 +199,21 @@ namespace UsageTimerWinUI.Views
 
             _series.Values = _values.ToArray();
 
+            LegendTextPaint = new SolidColorPaint(
+                SettingsService.Theme == "Dark"
+                    ? new SKColor(240, 240, 240)
+                    : new SKColor(20, 20, 20)
+                    );
+
             DispatcherQueue.TryEnqueue(() =>
             {
-                XAxis[0].Invalidate();
+                this.DataContext = null;
+                this.DataContext = this;
+                if (UsageChart != null)
+                {
+                    //XAxis[0].Invalidate(UsageChart.CoreChart);
+                    UsageChart.CoreChart.Update();
+                }
             });
 
         }
