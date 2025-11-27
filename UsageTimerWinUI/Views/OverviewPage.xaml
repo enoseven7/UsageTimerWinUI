@@ -38,14 +38,12 @@
                 BorderBrush="#22FFFFFF"
                 x:Name="ChartContainer"
                 BorderThickness="1">
-            <!--
-            <lvc:PieChart
-                x:Name="UsagePieChart"
+            <lvc:CartesianChart
+                Series="{Binding UsageSeries}"
+                XAxes="{Binding XAxis}"
+                YAxes="{Binding YAxis}"
                 LegendPosition="Right"
-                LegendTextPaint="{Binding LegendTextPaint}"
-                LegendTextSize="14">
-            </lvc:PieChart>
-            -->
+                ZoomMode="None"/>
         </Border>
     </Grid>
     

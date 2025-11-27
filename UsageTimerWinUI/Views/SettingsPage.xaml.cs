@@ -51,7 +51,10 @@ namespace UsageTimerWinUI.Views
             {
                 ThemeHelper.ApplyTheme(window);
             }
+
+            (App._window as MainWindow)?.RefreshBackdrop();
         }
+
 
         private void MicaToggle_Toggled(object sender, RoutedEventArgs e)
         {

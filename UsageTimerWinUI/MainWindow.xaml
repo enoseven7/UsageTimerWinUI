@@ -7,19 +7,14 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <!-- draggable titlebar row -->
             <RowDefinition Height="36"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Draggable area: keep this as a simple non-interactive container -->
         <Grid x:Name="AppTitleBar" Grid.Row="0" Background="Transparent">
             <TextBlock Text="PC Usage Timer" VerticalAlignment="Center" Margin="12,0" FontWeight="SemiBold"/>
-            <!-- If you need controls here (e.g. custom buttons), make sure they do NOT cover the draggable region
-                 or set IsHitTestVisible=\"False\" on non-interactive parts. -->
         </Grid>
 
-        <!-- Main content (NavigationView etc.) goes below the titlebar -->
         <NavigationView x:Name="Nav" Grid.Row="1"
                         IsBackButtonVisible="Collapsed"
                         IsTitleBarAutoPaddingEnabled="False"
@@ -30,6 +25,7 @@
             </NavigationView.MenuItems>
 
             <Frame x:Name="ContentFrame"/>
+            
         </NavigationView>
     </Grid>
 </Window>

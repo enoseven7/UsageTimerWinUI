@@ -34,6 +34,7 @@ public sealed partial class MainWindow : Window
         this.InitializeComponent();
         this.Activated += MainWindow_Activated;
         SettingsService.Load();
+        ThemeHelper.ApplyTheme(this);
 
         AppTrackerService.EnsureInitialized();
         SessionTimerService.Start();
@@ -42,7 +43,7 @@ public sealed partial class MainWindow : Window
 
         InitAppWindow();
 
-        ThemeHelper.ApplyTheme(this);
+
         TrySetMica();
 
 
@@ -65,12 +66,14 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Activated(object sender, WindowActivatedEventArgs e)
     {
+        /*
         if (trayInitialized)
             return;
 
         trayInitialized = true;
 
         InitTrayIcon();
+        */
     }
 
     private void InitTrayIcon()
@@ -122,6 +125,7 @@ public sealed partial class MainWindow : Window
         if (SettingsService.MinimizeToTray)
         {
             // cancel real close, hide to tray
+            InitTrayIcon();
             args.Cancel = true;
             sender.Hide();
             return;
@@ -168,22 +172,56 @@ public sealed partial class MainWindow : Window
     }
 
     private MicaController? _micaController;
+    private DesktopAcrylicController? _acrylicController;
     private SystemBackdropConfiguration? _config;
 
     private void TrySetMica()
     {
-        if (!SettingsService.UseMica || !MicaController.IsSupported())
-            return;
+
+        var theme = SettingsService.Theme switch
+        {
+            "Light" => SystemBackdropTheme.Light,
+            "Dark" => SystemBackdropTheme.Dark,
+            _ => SystemBackdropTheme.Default // System
+        };
 
         _config = new SystemBackdropConfiguration
         {
             IsInputActive = true,
-            Theme = SystemBackdropTheme.Default
+            Theme = theme
         };
+        ThemeHelper.ApplyTheme(this);
 
-        _micaController = new MicaController();
-        _micaController.AddSystemBackdropTarget(this.As<ICompositionSupportsSystemBackdrop>());
-        _micaController.SetSystemBackdropConfiguration(_config);
+        if (!SettingsService.UseMica || !MicaController.IsSupported())
+        {
+            if(_acrylicController == null)
+            {
+                //_acrylicController?.Dispose();
+                //_acrylicController = null;
+                _acrylicController = new DesktopAcrylicController();
+                _acrylicController.AddSystemBackdropTarget(this.As<ICompositionSupportsSystemBackdrop>());
+                _acrylicController.SetSystemBackdropConfiguration(_config);    
+            }
+            else
+            {
+                _acrylicController.SetSystemBackdropConfiguration(_config);
+            }
+            return;
+        }
+
+        if(_micaController == null)
+        {
+            //_micaController?.Dispose();
+            //_micaController = null;
+            _micaController = new MicaController();
+            _micaController.AddSystemBackdropTarget(this.As<ICompositionSupportsSystemBackdrop>());
+            _micaController.SetSystemBackdropConfiguration(_config);
+        }
+        else
+        {
+            _micaController.SetSystemBackdropConfiguration(_config);
+        }
+        
     }
 
     public void RequestTrueClose()
@@ -193,5 +231,8 @@ public sealed partial class MainWindow : Window
         this.Close();
     }
 
-
+    public void RefreshBackdrop()
+    {
+        TrySetMica();
+    }
 }

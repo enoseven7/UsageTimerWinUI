@@ -13,8 +13,9 @@ namespace UsageTimerWinUI.Services
             {
                 "Light" => ElementTheme.Light,
                 "Dark" => ElementTheme.Dark,
-                _ => ElementTheme.Default // System
+                _ => ElementTheme.Dark // System
             };
+
         }
     }
 }

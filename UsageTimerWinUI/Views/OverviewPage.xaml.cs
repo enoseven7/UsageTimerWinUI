@@ -1,19 +1,20 @@
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.Painting;
+using LiveChartsCore.SkiaSharpView.WinUI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Dispatching;
+using SkiaSharp;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using LiveChartsCore;
-using LiveChartsCore.SkiaSharpView;
-using LiveChartsCore.SkiaSharpView.Painting;
-using SkiaSharp;
 using UsageTimerWinUI.Services;
-using LiveChartsCore.SkiaSharpView.WinUI;
+using Windows.Foundation.Collections;
 
 namespace UsageTimerWinUI.Views
 {
@@ -27,16 +28,14 @@ namespace UsageTimerWinUI.Views
 
         public SolidColorPaint LegendTextPaint { get; set; } = new SolidColorPaint(new SKColor(240, 240, 240));
 
-        private ISeries[] _appUsageSeries = Array.Empty<ISeries>();
-        public ISeries[] AppUsageSeries
-        {
-            get => _appUsageSeries;
-            set
-            {
-                _appUsageSeries = value;
-                OnPropertyChanged();
-            }
-        }
+        public ISeries[] UsageSeries { get; set;  }
+        public Axis[] XAxis { get; set; }
+        public Axis[] YAxis { get; set; }
+
+        private ColumnSeries<double> _series;
+        private List<double> _values;
+        private List<string> _labels;
+
 
         //public SolidColorPaint LegendTextPaint { get; set; }
 
@@ -47,6 +46,40 @@ namespace UsageTimerWinUI.Views
             this.InitializeComponent();
 
             this.Loaded += OverviewPage_Loaded;
+
+            _labels = new List<string>();
+            _values = new List<double>();
+
+            _series = new ColumnSeries<double>
+            {
+                Values = _values,
+                Fill = new SolidColorPaint(new SKColor(100, 180, 255)),
+                Stroke = null,
+                DataLabelsPaint = new SolidColorPaint(SKColors.White),
+                DataLabelsSize = 14,
+                DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End
+            };
+
+            UsageSeries = new ISeries[] { _series };
+
+            XAxis = new[]
+            {
+                new Axis
+                {
+                    LabelsPaint = new SolidColorPaint(new SKColor(200,200,200)),
+                    Labels = _labels
+                }
+            };
+
+            YAxis = new[]
+            {
+                new Axis
+                {
+                    LabelsPaint = new SolidColorPaint(new SKColor(200,200,200))
+                }
+            };
+
+            DataContext = this;
 
             // data binding base
             //this.DataContext = this;
@@ -137,65 +170,24 @@ namespace UsageTimerWinUI.Views
 
         private void BuildSeries()
         {
-            if (_pieChart == null)
-                return;
+            var usage = AppTrackerService.Usage;
 
-            try
+            _labels.Clear();
+            _values.Clear();
+
+            foreach (var kv in usage.OrderByDescending(x => x.Value))
             {
-                var usage = AppTrackerService.Usage;
-
-                var series = new List<ISeries>();
-
-                foreach (var kv in usage.OrderByDescending(x => x.Value))
-                {
-                    var name = kv.Key;
-                    // ensure the numeric value is treated as double to avoid boxed-int issues
-                    var valueAsDouble = Convert.ToDouble(kv.Value);
-                    var minutes = Math.Round(valueAsDouble / 60.0, 1);
-
-                    if (minutes <= 0)
-                        continue;
-
-                    // explicitly create a double[] so LiveCharts sees doubles (not boxed ints)
-                    series.Add(new PieSeries<double>
-                    {
-                        Name = name,
-                        Values = new double[] { minutes },
-                        DataLabelsPaint = new SolidColorPaint(SKColors.White),
-                        DataLabelsSize = 12,
-                        DataLabelsPosition = LiveChartsCore.Measure.PolarLabelsPosition.Outer
-                    });
-                }
-
-                // assign on UI thread and defensively clear previous series first
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    try
-                    {
-                        _pieChart.Series = Array.Empty<ISeries>();
-                        _pieChart.Series = series.ToArray();
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Failed to assign pie series: {ex}");
-                        // dump diagnostic types for debugging
-                        foreach (var s in series)
-                        {
-                            if (s is PieSeries<double> ps && ps.Values != null)
-                            {
-                                foreach (var v in ps.Values)
-                                    Debug.WriteLine($"Value type: {v.GetType().FullName ?? "null"}");
-                            }
-                        }
-                    }
-                });
+                _labels.Add(kv.Key);
+                _values.Add(Math.Round(kv.Value / 60.0, 2));
             }
 
-            catch (Exception ex)
+            _series.Values = _values.ToArray();
+
+            DispatcherQueue.TryEnqueue(() =>
             {
-                Debug.WriteLine($"Failed to build app usage series: {ex}");
-                AppUsageSeries = Array.Empty<ISeries>();
-            }
+                XAxis[0].Invalidate();
+            });
+
         }
 
         private void Timer_Tick(object sender, object e)
