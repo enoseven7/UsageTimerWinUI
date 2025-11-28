@@ -187,13 +187,25 @@ namespace UsageTimerWinUI.Views
         private void BuildSeries()
         {
             var usage = AppTrackerService.Usage;
+            var displayNames = AppTrackerService.DisplayNames;
 
             _labels.Clear();
             _values.Clear();
 
             foreach (var kv in usage.OrderByDescending(x => x.Value))
             {
-                _labels.Add(kv.Key);
+                var finalName = "";
+                if(displayNames.ContainsKey(kv.Key))
+                {
+                    finalName = displayNames[kv.Key];
+                }
+                else
+                {
+                    AppUsagePage _appUsagePage = new AppUsagePage();
+                    finalName = _appUsagePage.GetNiceDisplayName(kv.Key);
+                }
+
+                _labels.Add(finalName);
                 _values.Add(Math.Round(kv.Value / 60.0, 2));
             }
 
@@ -275,6 +287,22 @@ namespace UsageTimerWinUI.Views
                 FileName = "https://github.com/enoseven7",
                 UseShellExecute = true
             });
+        }
+
+        private void PauseButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (SessionTimerService.isPaused)
+            {
+                SessionTimerService.Resume();
+                SessionTimerService._timer.Start();
+                PauseButton.Content = "Pause";
+            }
+            else
+            {
+                SessionTimerService.Pause();
+                SessionTimerService._timer.Stop();
+                PauseButton.Content = "Resume";
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

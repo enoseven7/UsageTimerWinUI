@@ -17,6 +17,8 @@ using AppWindow = Microsoft.UI.Windowing.AppWindow;
 using WindowId = Microsoft.UI.WindowId;
 using System.Runtime.InteropServices;
 
+
+
 namespace UsageTimerWinUI;
 
 public sealed partial class MainWindow : Window
@@ -29,6 +31,11 @@ public sealed partial class MainWindow : Window
     private bool trayInitialized = false;
 
     private bool allowClose = false;
+
+    private static readonly string folder =
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UsageTimerWinUI");
+
+    private static readonly string saveFile = Path.Combine(folder, "time_log.txt");
     public MainWindow()
     {
         this.InitializeComponent();
@@ -115,6 +122,11 @@ public sealed partial class MainWindow : Window
     }
     private void MainWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
     {
+        if (File.Exists(saveFile))
+        {
+            SessionTimerService.Save();
+        }
+
         Debug.Write(allowClose);
         if (allowClose)
         {
@@ -134,6 +146,7 @@ public sealed partial class MainWindow : Window
         trayIcon?.Dispose();
         
     }
+
 
     private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {

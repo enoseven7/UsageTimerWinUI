@@ -11,11 +11,16 @@ namespace UsageTimerWinUI.Services
 
         public static event Action? Updated;
 
-        private static DispatcherTimer? _timer;
+        public static DispatcherTimer? _timer;
         private static readonly string folder =
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UsageTimerWinUI");
 
         private static readonly string saveFile = Path.Combine(folder, "time_log.txt");
+
+        public static bool isPaused { get; private set; }
+
+        public static void Pause() => isPaused = true;
+        public static void Resume() => isPaused = false;
 
         static SessionTimerService()
         {
@@ -29,6 +34,10 @@ namespace UsageTimerWinUI.Services
                 {
                     TotalSeconds = temp;
                 }
+            }
+            else
+            {
+                File.Create(saveFile);
             }
                 
         }
@@ -52,6 +61,22 @@ namespace UsageTimerWinUI.Services
             _timer.Start();
         }
 
+        public static void Save()
+        {
+            if (File.Exists(saveFile) )
+            {
+                File.WriteAllText(saveFile,
+                    TotalSeconds.ToString());
+            }
+            else
+            {
+                File.Create(saveFile);
+                File.WriteAllText(saveFile,
+                    TotalSeconds.ToString());
+            }
+
+                Updated?.Invoke();
+        }
         public static void Reset()
         {
             TotalSeconds = 0;

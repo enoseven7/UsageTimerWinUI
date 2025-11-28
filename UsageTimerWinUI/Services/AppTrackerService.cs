@@ -60,6 +60,12 @@ namespace UsageTimerWinUI.Services
                 TrackedApps.Remove(name);
                 Save();
             }
+
+            if(Usage.ContainsKey(name))
+            {
+                Usage.Remove(name);
+                Save();
+            }
         }
 
         // Safely enumerate processes and skip protected/system processes.
@@ -109,6 +115,10 @@ namespace UsageTimerWinUI.Services
 
         public static void Tick()
         {
+            if(SessionTimerService.isPaused)
+            {
+                return;
+            }
             foreach (var name in TrackedApps)
             {
                 if (!Usage.ContainsKey(name))

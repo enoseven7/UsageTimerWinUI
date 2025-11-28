@@ -25,8 +25,9 @@
             <ProgressBar x:Name="HourProgress" Maximum="3600" Height="20" />
 
             <StackPanel Orientation="Horizontal" Spacing="10">
-                <Button Content="Reset" Click="ResetButton_Click" />
+                <!--<Button Content="Reset" Click="ResetButton_Click" /> -->
                 <Button Content="GitHub" Click="GithubButton_Click" />
+                <Button Content="Pause" Click="PauseButton_Click" x:Name="PauseButton"></Button>
             </StackPanel>
 
         </StackPanel>

@@ -420,7 +420,7 @@ public sealed partial class AppUsagePage : Page
         }
     }
 
-    private string GetNiceDisplayName(string processName)
+    public string GetNiceDisplayName(string processName)
     {
         try
         {
