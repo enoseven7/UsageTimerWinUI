@@ -85,7 +85,7 @@ public sealed partial class MainWindow : Window
 
     private void InitTrayIcon()
     {
-        var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "timerIcon.ico");
+        var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "Square44x44Logo.targetsize-32.png");
         var icon = System.IO.File.Exists(iconPath)
             ? new System.Drawing.Icon(iconPath)
             : System.Drawing.SystemIcons.Application;
