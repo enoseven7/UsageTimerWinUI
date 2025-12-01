@@ -11,15 +11,15 @@
   IgnorableNamespaces="uap rescap uap18">
 
   <Identity
-    Name="b0215eda-a8e1-47e9-a391-87fbefc93e4b"
-    Publisher="CN=wrati"
+    Name="enoseven.PCUsageTracker"
+    Publisher="CN=4EB5C44C-5E2E-4FBA-8BC8-DE8F3E6CBDD0"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="b0215eda-a8e1-47e9-a391-87fbefc93e4b" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>PC Usage Timer</DisplayName>
-    <PublisherDisplayName>wrati</PublisherDisplayName>
+    <DisplayName>PC Usage Tracker</DisplayName>
+    <PublisherDisplayName>enoseven</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -45,7 +45,7 @@
 			</uap5:Extension>
 		</Extensions>
       <uap:VisualElements
-        DisplayName="PC Usage Timer"
+        DisplayName="PC Usage Tracker"
         Description="An application for tracking the time used on your computer."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
